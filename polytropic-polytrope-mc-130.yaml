@@ -1,0 +1,157 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+ResourceInfo:
+  AvoidGlobalProc0: false
+  Singletons:
+    CenterOfStar:
+      Proc: Auto
+      Exclusive: false
+
+
+DomainCreator:
+  AlignedLattice:
+    BlockBounds: [[-12.0, -4.0, 4.0, 12.0],
+                  [-12.0, -4.0, 4.0 , 12.0],
+                  [-12.0, -4.0, 4.0, 12.0]]
+    InitialGridPoints: [6, 6, 6]
+    InitialLevels: [3,3,3]
+    RefinedLevels: []
+    RefinedGridPoints: []
+    BlocksToExclude: []
+    BoundaryCondition: Periodic
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.07
+  TimeStepper:
+    RungeKutta3:
+
+AnalyticSolution:
+  TovStar:
+    CentralDensity: 1.28e-3
+    Coordinates: Schwarzschild
+    EquationOfState:
+      PolytropicFluid:
+        PolytropicConstant: 100.0
+        PolytropicExponent: 2.0
+
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Hll:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+    Subcell:
+      RdmpDelta0: 1.0e-7
+      RdmpEpsilon: 1.0e-3
+      PerssonExponent: 4.0
+      InitialData:
+        RdmpDelta0: 1.0e-7
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 4.0
+      AlwaysUseSubcells: false
+      SubcellToDgReconstructionMethod: DimByDim
+    TciOptions:
+      MinimumValueOfD: 1.0e-20
+      MinimumValueOfYe: 1.0e-20
+      MinimumValueOfTildeTau: 1.0e-40
+      AtmosphereDensity: 1.01e-15
+      SafetyFactorForB: 1.0e-12
+      MagneticFieldCutoff: DoNotCheckMagneticField
+  SubcellSolver:
+    Reconstructor:
+       MonotonisedCentralPrim:
+
+PhaseChangeAndTriggers:
+  - - Slabs:
+        EvenlySpaced:
+          Interval: 10000
+          Offset: 0
+    - - VisitAndReturn(WriteCheckpoint)
+
+EventsAndTriggers:
+  - - Slabs:
+        EvenlySpaced:
+          Interval: 1000
+          Offset: 0
+    - - ObserveFields:
+          VariablesToObserve: [RestMassDensity, SpecificInternalEnergy, Pressure,
+                               SpecificEnthalpy, SpatialVelocity, LorentzFactor,
+                               # MagneticField, DivergenceCleaningField,
+                               TildeD, TildeTau
+                               # , Lapse
+                               # , dt(TildeD), dt(TildeTau), dt(TildeS)
+                               ]
+          SubfileName: element_data
+          InterpolateToMesh: None
+          CoordinatesFloatingPointType: Float
+          FloatingPointTypes: [Float]
+  - - Slabs:
+        EvenlySpaced:
+          Interval: 100
+          Offset: 0
+    - - ObserveTimeStep:
+          SubfileName: time_steps
+          PrintTimeToTerminal: true
+          ObservePerCore: false
+  - - Slabs:
+        EvenlySpaced:
+          Interval: 10
+          Offset: 0
+    - - ObserveNorms:
+          SubfileName: max_data
+          TensorsToObserve:
+            - Name: RestMassDensity
+              NormType: Max
+              Components: Individual
+
+  - - Slabs:
+        EvenlySpaced:
+          Interval: 200
+          Offset: 0
+    - - ChangeSlabSize:
+          DelayChange: 0
+          StepChoosers:
+            - Cfl:
+                SafetyFactor: 0.8
+            - Increase:
+                Factor: 1.2
+  - - Slabs:
+        Specified:
+          # 40,000 slabs with a dt of 0.1 means final time of 4000M, which with
+          # M=M_sun means we have a final time of 20ms
+          Values: [40000]
+    - - Completion
+
+Observers:
+  VolumeFileName: "./GrmhdTovStarP5Lev1"
+  ReductionFileName: "./GrmhdTovStarP5Lev1"
+
+EvolutionSystem:
+  ValenciaDivClean:
+    DampingParameter: 1.0
+
+VariableFixing:
+  FixConservatives:
+    CutoffD: 1.01e-15
+    MinimumValueOfYe: 0.0
+    CutoffYe : 0.0              
+    MinimumValueOfD: 1.0e-15
+    SafetyFactorForB: 1.0e-12
+    SafetyFactorForS: 1.0e-12
+  FixToAtmosphere:
+    DensityOfAtmosphere: 1.0e-15
+    DensityCutoff: 1.01e-15
+    TransitionDensityCutoff: 1.0e-14
+    MaxVelocityMagnitude: 1.0e-4
+
+EventsAndDenseTriggers:
+
+InterpolationTargets:
+  CenterOfStar:
+    Points: [[0,0,0]]
+
+Interpolator:
+  DumpVolumeDataOnFailure: false
