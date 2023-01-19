@@ -1,3 +1,6 @@
+Distributed under the MIT License.
+See LICENSE.txt for details.
+
 These input files are designed to be run on spectre version 2023.01.13,
 available at
 https://github.com/sxs-collaboration/spectre/releases/tag/v2023.01.13
