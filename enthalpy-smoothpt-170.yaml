@@ -1,0 +1,196 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+ResourceInfo:
+  AvoidGlobalProc0: false
+  Singletons:
+    CenterOfStar:
+      Proc: Auto
+      Exclusive: false
+
+
+DomainCreator:
+  AlignedLattice:
+    BlockBounds: [[-15.0, -5.0, 5.0, 15.0],
+                  [-15.0, -5.0, 5.0, 15.0],
+                  [-15.0, -5.0, 5.0, 15.0]]
+    InitialGridPoints: [6, 6, 6]
+    InitialLevels: [3, 3, 3]
+    RefinedLevels: []
+    RefinedGridPoints: []
+    BlocksToExclude: []
+    BoundaryCondition: Periodic
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.06
+  TimeStepper:
+    RungeKutta3:
+
+AnalyticSolution:
+  TovStar:
+    CentralDensity: 2.1e-3
+    Coordinates: Schwarzschild
+    EquationOfState:
+      Enthalpy(Spectral):
+         ReferenceDensity: 0.00022669023349678794
+         MinimumDensity: 0.0004533804669935759
+         MaximumDensity: 0.003627043735948607
+         TrigScaling: 1.3101458972073952
+         PolynomialCoefficients: [
+        1.0,
+        0.12231358750375616,
+        5.465548440927927e-31,
+        1.2101661052638212e-31,
+        3.222923391310515e-33,
+        7.083929842379206e-30,
+        5.092929144937607e-31,
+        0.000643012946363679,
+        9.779755902876744e-05,
+        ]
+         SinCoefficients: [
+        0.08310696350838931,
+        -0.057241646694548995,
+        -0.12592846264369623,
+        -0.014870124382652943
+        ]       
+         CosCoefficients: [
+        0.11255925731368108,
+        0.1604829208054406,
+        0.023082832794994353,
+        -0.038070560261985104
+         ]
+         TransitionDeltaEpsilon: 0.0
+         Spectral:
+            ReferenceDensity: 0.00011334511674839397
+            ReferencePressure: 5.986300224687411e-07
+            Coefficients: [
+            1.2,
+            0.0,
+            6.3840724060246234,
+            -4.1193576762861746]
+            UpperDensity: 0.0004533804669935759
+                
+
+      # PolytropicFluid:
+      #   PolytropicConstant: 100.0
+      #   PolytropicExponent: 2.0
+
+
+    
+SpatialDiscretization:
+  BoundaryCorrection:
+    Hll:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+    Subcell:
+      RdmpDelta0: 1.0e-7
+      RdmpEpsilon: 1.0e-3
+      PerssonExponent: 4.0
+      InitialData:
+        RdmpDelta0: 1.0e-7
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 4.0
+      AlwaysUseSubcells: false
+      SubcellToDgReconstructionMethod: DimByDim
+    TciOptions:
+      MinimumValueOfD: 1.0e-20
+      MinimumValueOfYe: 1.0e-20
+      MinimumValueOfTildeTau: 1.0e-40
+      AtmosphereDensity: 1.01e-15
+      SafetyFactorForB: 1.0e-12
+      MagneticFieldCutoff: DoNotCheckMagneticField
+  SubcellSolver:
+    Reconstructor:
+      MonotonisedCentralPrim:
+PhaseChangeAndTriggers:
+  - - Slabs:
+        EvenlySpaced:
+          Interval: 10000
+          Offset: 0
+    - - VisitAndReturn(WriteCheckpoint)
+
+EventsAndTriggers:
+  - - Slabs:
+        EvenlySpaced:
+          Interval: 1000
+          Offset: 0
+    - - ObserveFields:
+          VariablesToObserve: [RestMassDensity, SpecificInternalEnergy, Pressure,
+                               SpecificEnthalpy, SpatialVelocity, LorentzFactor,
+                               # MagneticField, DivergenceCleaningField,
+                               TildeD, TildeTau
+                               # , Lapse
+                               # , dt(TildeD), dt(TildeTau), dt(TildeS)
+                               ]
+          SubfileName: element_data
+          InterpolateToMesh: None
+          CoordinatesFloatingPointType: Float
+          FloatingPointTypes: [Float]
+  - - Slabs:
+        EvenlySpaced:
+          Interval: 100
+          Offset: 0
+    - - ObserveTimeStep:
+          SubfileName: time_steps
+          PrintTimeToTerminal: true
+          ObservePerCore: false
+  - - Slabs:
+        EvenlySpaced:
+          Interval: 10
+          Offset: 0
+    - - ObserveNorms:
+          SubfileName: max_data
+          TensorsToObserve:
+            - Name: RestMassDensity
+              NormType: Max
+              Components: Individual
+  - - Slabs:
+        EvenlySpaced:
+          Interval: 200
+          Offset: 0
+    - - ChangeSlabSize:
+          DelayChange: 0
+          StepChoosers:
+            - Cfl:
+                SafetyFactor: 0.8
+            - Increase:
+                Factor: 1.2
+  - - Slabs:
+        Specified:
+          # 40,000 slabs with a dt of 0.1 means final time of 4000M, which with
+          # M=M_sun means we have a final time of 20ms
+          Values: [10000]
+    - - Completion
+
+Observers:
+  VolumeFileName: "./GrmhdTovStarP5Lev1"
+  ReductionFileName: "./GrmhdTovStarP5Lev1"
+
+EvolutionSystem:
+  ValenciaDivClean:
+    DampingParameter: 1.0
+
+VariableFixing:
+  FixConservatives:
+    CutoffD: 1.01e-15
+    MinimumValueOfYe: 0.0
+    CutoffYe : 0.0              
+    MinimumValueOfD: 1.0e-15
+    SafetyFactorForB: 1.0e-12
+    SafetyFactorForS: 1.0e-12
+  FixToAtmosphere:
+    DensityOfAtmosphere: 1.0e-15
+    DensityCutoff: 1.01e-15
+    TransitionDensityCutoff: 1.0e-14
+    MaxVelocityMagnitude: 1.0e-4
+
+EventsAndDenseTriggers:
+
+InterpolationTargets:
+  CenterOfStar:
+    Points: [[0,0,0]]
+
+Interpolator:
+  DumpVolumeDataOnFailure: false
